@@ -42,6 +42,26 @@ public class Block {
 			isSolid = true;
 	}
 
+	public Block(BlockType b, Vector3 pos, GameObject p)
+	{
+		bType = b;
+		parent = p;
+		position = pos;
+		if(bType == BlockType.AIR)
+			isSolid = false;
+		else
+			isSolid = true;
+	}
+
+	public void SetType(BlockType b)
+	{
+		bType = b;
+		if(bType == BlockType.AIR)
+			isSolid = false;
+		else
+			isSolid = true;
+	}
+
 	void CreateQuad(Cubeside side)
 	{
 		Mesh mesh = new Mesh();

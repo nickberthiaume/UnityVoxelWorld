@@ -43,10 +43,6 @@ public class World : MonoBehaviour {
 
 	IEnumerator BuildRecursiveWorld(int x, int y, int z, int rad)
 	{
-		if(rad <= 0) yield break;
-		BuildChunkAt(x,y,z-1);
-		StartCoroutine(BuildRecursiveWorld(x, y, z-1, rad-1));
-
 		yield return null;
 	}
 
@@ -97,7 +93,5 @@ public class World : MonoBehaviour {
 			player.SetActive(true);	
 			firstbuild = false;
 		}
-
-		StartCoroutine(DrawChunks());
 	}
 }
