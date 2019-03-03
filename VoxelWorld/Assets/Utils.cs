@@ -23,7 +23,6 @@ public class Utils {
 
     public static float fBM3D(float x, float y, float z, float sm, int oct)
     {
-        
         float XY = fBM(x*sm,y*sm,oct,0.5f);
         float YZ = fBM(y*sm,z*sm,oct,0.5f);
         float XZ = fBM(x*sm,z*sm,oct,0.5f);
@@ -46,9 +45,10 @@ public class Utils {
         float frequency = 1;
         float amplitude = 1;
         float maxValue = 0;
+        float offset = 32000f;
         for(int i = 0; i < oct ; i++) 
         {
-                total += Mathf.PerlinNoise(x * frequency, z * frequency) * amplitude;
+                total += Mathf.PerlinNoise((x+offset) * frequency, (z+offset) * frequency) * amplitude;
 
                 maxValue += amplitude;
 
