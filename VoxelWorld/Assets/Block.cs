@@ -5,7 +5,7 @@ using UnityEngine;
 public class Block{
 
 	enum Cubeside {BOTTOM, TOP, LEFT, RIGHT, FRONT, BACK};
-	public enum BlockType {GRASS, DIRT, STONE, SAND, GOLD, BEDROCK, REDSTONE, DIAMOND, NOCRACK, 
+	public enum BlockType {GRASS, DIRT, WATER, STONE, SAND, GOLD, BEDROCK, REDSTONE, DIAMOND, NOCRACK, 
 							CRACK1, CRACK2, CRACK3, CRACK4, AIR};
 
 	public BlockType bType;
@@ -16,7 +16,7 @@ public class Block{
 
 	public BlockType health;
 	int currentHealth;
-	int[] blockHealthMax = {3, 3, 4, 2, 3, -1, 4, 4, 0, 0, 0, 0, 0, 0};
+	int[] blockHealthMax = {3, 3, 8, 4, 2, 3, -1, 4, 4, 0, 0, 0, 0, 0, 0};
 
 	Vector2[,] blockUVs = { 
 		/*GRASS TOP*/		{new Vector2( 0.125f, 0.375f ), new Vector2( 0.1875f, 0.375f),
@@ -25,6 +25,8 @@ public class Block{
 								new Vector2( 0.1875f, 1.0f ),new Vector2( 0.25f, 1.0f )},
 		/*DIRT*/			{new Vector2( 0.125f, 0.9375f ), new Vector2( 0.1875f, 0.9375f),
 								new Vector2( 0.125f, 1.0f ),new Vector2( 0.1875f, 1.0f )},
+        /*WATER*/           {new Vector2( 0.875f, 0.125f ), new Vector2( 0.9375f, 0.125f),
+                                new Vector2( 0.875f, 0.1875f ),new Vector2( 0.9375f, 0.1875f )},
 		/*STONE*/			{new Vector2( 0, 0.875f ), new Vector2( 0.0625f, 0.875f),
 								new Vector2( 0, 0.9375f ),new Vector2( 0.0625f, 0.9375f )},
 		/*SAND*/			{ new Vector2(0.125f,0.875f),  new Vector2(0.1875f,0.875f),
@@ -243,43 +245,50 @@ public class Block{
 		return i;
 	}
 
+    public Block GetBlock(int x, int y, int z)
+    {
+        Block[,,] chunks;
+
+        if (x < 0 || x >= World.chunkSize ||
+           y < 0 || y >= World.chunkSize ||
+           z < 0 || z >= World.chunkSize)
+        {  //block in a neighbouring chunk
+
+            Vector3 neighbourChunkPos = this.parent.transform.position +
+                                        new Vector3((x - (int)position.x) * World.chunkSize,
+                                            (y - (int)position.y) * World.chunkSize,
+                                            (z - (int)position.z) * World.chunkSize);
+            string nName = World.BuildChunkName(neighbourChunkPos);
+
+            x = ConvertBlockIndexToLocal(x);
+            y = ConvertBlockIndexToLocal(y);
+            z = ConvertBlockIndexToLocal(z);
+
+            Chunk nChunk;
+            if (World.chunks.TryGetValue(nName, out nChunk))
+            {
+                chunks = nChunk.chunkData;
+            }
+            else
+                return null;
+        }  //block in this chunk
+        else
+            chunks = owner.chunkData;
+        return chunks[x, y, z];
+       
+    }
+
 	public bool HasSolidNeighbour(int x, int y, int z)
 	{
-		Block[,,] chunks;
+        try
+        {
+            Block b = GetBlock(x, y, z);
+            if (b != null)
+                return (b.isSolid || b.bType == bType);
+        }
+        catch (System.IndexOutOfRangeException) { }
 
-		if(x < 0 || x >= World.chunkSize || 
-		   y < 0 || y >= World.chunkSize ||
-		   z < 0 || z >= World.chunkSize)
-		{  //block in a neighbouring chunk
-			
-			Vector3 neighbourChunkPos = this.parent.transform.position + 
-										new Vector3((x - (int)position.x)*World.chunkSize, 
-											(y - (int)position.y)*World.chunkSize, 
-											(z - (int)position.z)*World.chunkSize);
-			string nName = World.BuildChunkName(neighbourChunkPos);
-
-			x = ConvertBlockIndexToLocal(x);
-			y = ConvertBlockIndexToLocal(y);
-			z = ConvertBlockIndexToLocal(z);
-			
-			Chunk nChunk;
-			if(World.chunks.TryGetValue(nName, out nChunk))
-			{
-				chunks = nChunk.chunkData;
-			}
-			else
-				return false;
-		}  //block in this chunk
-		else
-			chunks = owner.chunkData;
-		
-		try
-		{
-			return chunks[x,y,z].isSolid;
-		}
-		catch(System.IndexOutOfRangeException){}
-
-		return false;
+        return false;
 	}
 
 	public void Draw()
