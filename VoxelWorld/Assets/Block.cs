@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class Block{
@@ -10,13 +11,13 @@ public class Block{
 
 	public BlockType bType;
 	public bool isSolid;
-	Chunk owner;
+	public Chunk owner;
 	GameObject parent;
-	Vector3 position;
+	public Vector3 position;
 
 	public BlockType health;
-	int currentHealth;
-	int[] blockHealthMax = {3, 3, 8, 4, 2, 3, -1, 4, 4, 0, 0, 0, 0, 0, 0};
+	public int currentHealth;
+	int[] blockHealthMax = {3, 3, 10, 4, 2, 3, -1, 4, 4, 0, 0, 0, 0, 0, 0};
 
 	Vector2[,] blockUVs = { 
 		/*GRASS TOP*/		{new Vector2( 0.125f, 0.375f ), new Vector2( 0.1875f, 0.375f),
@@ -25,8 +26,8 @@ public class Block{
 								new Vector2( 0.1875f, 1.0f ),new Vector2( 0.25f, 1.0f )},
 		/*DIRT*/			{new Vector2( 0.125f, 0.9375f ), new Vector2( 0.1875f, 0.9375f),
 								new Vector2( 0.125f, 1.0f ),new Vector2( 0.1875f, 1.0f )},
-        /*WATER*/           {new Vector2( 0.875f, 0.125f ), new Vector2( 0.9375f, 0.125f),
-                                new Vector2( 0.875f, 0.1875f ),new Vector2( 0.9375f, 0.1875f )},
+		/*WATER*/			{ new Vector2(0.875f,0.125f),  new Vector2(0.9375f,0.125f),
+ 								new Vector2(0.875f,0.1875f), new Vector2(0.9375f,0.1875f)},
 		/*STONE*/			{new Vector2( 0, 0.875f ), new Vector2( 0.0625f, 0.875f),
 								new Vector2( 0, 0.9375f ),new Vector2( 0.0625f, 0.9375f )},
 		/*SAND*/			{ new Vector2(0.125f,0.875f),  new Vector2(0.1875f,0.875f),
@@ -58,22 +59,23 @@ public class Block{
 		owner = o;
 		parent = p;
 		position = pos;
-		if(bType == BlockType.AIR)
-			isSolid = false;
-		else
-			isSolid = true;
-
-		health = BlockType.NOCRACK;
-		currentHealth = blockHealthMax[(int)bType];
+		SetType(bType);
 	}
 
 	public void SetType(BlockType b)
 	{
 		bType = b;
-		if(bType == BlockType.AIR)
+		if(bType == BlockType.AIR || bType == BlockType.WATER)
 			isSolid = false;
 		else
 			isSolid = true;
+
+		if(bType == BlockType.WATER)
+		{
+			parent = owner.fluid.gameObject;
+		}
+		else
+			parent = owner.chunk.gameObject;
 
 		health = BlockType.NOCRACK;
 		currentHealth = blockHealthMax[(int)bType];
@@ -88,8 +90,17 @@ public class Block{
 
 	public bool BuildBlock(BlockType b)
 	{
-		SetType(b);
-		owner.Redraw();
+		if(b == BlockType.WATER)
+		{
+			owner.mb.StartCoroutine(owner.mb.Flow(this, 
+										BlockType.WATER, 
+										blockHealthMax[(int)BlockType.WATER],15));
+		}
+		else
+		{
+			SetType(b);
+			owner.Redraw();
+		}
 		return true;
 	}
 
@@ -164,15 +175,18 @@ public class Block{
 		//{uv11, uv01, uv00, uv10};
 
 		//all possible vertices 
+		//top vertices
 		Vector3 p0 = new Vector3( -0.5f,  -0.5f,  0.5f );
 		Vector3 p1 = new Vector3(  0.5f,  -0.5f,  0.5f );
 		Vector3 p2 = new Vector3(  0.5f,  -0.5f, -0.5f );
 		Vector3 p3 = new Vector3( -0.5f,  -0.5f, -0.5f );		 
+		//bottom vertices
 		Vector3 p4 = new Vector3( -0.5f,   0.5f,  0.5f );
 		Vector3 p5 = new Vector3(  0.5f,   0.5f,  0.5f );
 		Vector3 p6 = new Vector3(  0.5f,   0.5f, -0.5f );
 		Vector3 p7 = new Vector3( -0.5f,   0.5f, -0.5f );
-
+		
+		
 		switch(side)
 		{
 			case Cubeside.BOTTOM:
@@ -244,57 +258,66 @@ public class Block{
 			i = 0;
 		return i;
 	}
+	
+	public BlockType GetBlockType(int x, int y, int z)
+	{
+		Block b = GetBlock(x, y, z);
+		if(b == null)
+			return BlockType.AIR;
+		else
+			return b.bType;
+	}
 
-    public Block GetBlock(int x, int y, int z)
-    {
-        Block[,,] chunks;
+	public Block GetBlock(int x, int y, int z)
+	{
+		Block[,,] chunks;
 
-        if (x < 0 || x >= World.chunkSize ||
-           y < 0 || y >= World.chunkSize ||
-           z < 0 || z >= World.chunkSize)
-        {  //block in a neighbouring chunk
+		if(x < 0 || x >= World.chunkSize || 
+		   y < 0 || y >= World.chunkSize ||
+		   z < 0 || z >= World.chunkSize)
+		{  //block in a neighbouring chunk
+			
+			Vector3 neighbourChunkPos = this.parent.transform.position + 
+										new Vector3((x - (int)position.x)*World.chunkSize, 
+											(y - (int)position.y)*World.chunkSize, 
+											(z - (int)position.z)*World.chunkSize);
+			string nName = World.BuildChunkName(neighbourChunkPos);
 
-            Vector3 neighbourChunkPos = this.parent.transform.position +
-                                        new Vector3((x - (int)position.x) * World.chunkSize,
-                                            (y - (int)position.y) * World.chunkSize,
-                                            (z - (int)position.z) * World.chunkSize);
-            string nName = World.BuildChunkName(neighbourChunkPos);
+			x = ConvertBlockIndexToLocal(x);
+			y = ConvertBlockIndexToLocal(y);
+			z = ConvertBlockIndexToLocal(z);
+			
+			Chunk nChunk;
+			if(World.chunks.TryGetValue(nName, out nChunk))
+			{
+				chunks = nChunk.chunkData;
+			}
+			else
+				return null;
+		}  //block in this chunk
+		else
+			chunks = owner.chunkData;
 
-            x = ConvertBlockIndexToLocal(x);
-            y = ConvertBlockIndexToLocal(y);
-            z = ConvertBlockIndexToLocal(z);
-
-            Chunk nChunk;
-            if (World.chunks.TryGetValue(nName, out nChunk))
-            {
-                chunks = nChunk.chunkData;
-            }
-            else
-                return null;
-        }  //block in this chunk
-        else
-            chunks = owner.chunkData;
-        return chunks[x, y, z];
-       
-    }
+		return chunks[x,y,z];
+	}
 
 	public bool HasSolidNeighbour(int x, int y, int z)
 	{
-        try
-        {
-            Block b = GetBlock(x, y, z);
-            if (b != null)
-                return (b.isSolid || b.bType == bType);
-        }
-        catch (System.IndexOutOfRangeException) { }
+		try
+		{
+			Block b = GetBlock(x,y,z);
+			if(b != null)
+				return (b.isSolid || b.bType == bType);
+		}
+		catch(System.IndexOutOfRangeException){}
 
-        return false;
+		return false;
 	}
 
 	public void Draw()
 	{
 		if(bType == BlockType.AIR) return;
-
+		//solid or same neighbour
 		if(!HasSolidNeighbour((int)position.x,(int)position.y,(int)position.z + 1))
 			CreateQuad(Cubeside.FRONT);
 		if(!HasSolidNeighbour((int)position.x,(int)position.y,(int)position.z - 1))
